@@ -104,13 +104,11 @@ client.on('messageCreate', async (message: Message) => {
     const guildConfig = configData[guildId];
     if (!guildConfig || !guildConfig.targetChannelId) return;
 
-    // Validate message before proceeding
-    if (!validateMessage(message.content)) return;
-
+    // Split message into lines
     const lines = message.content.split('\n');
 
-    // 👇 Skip processing if the first line starts with '0]'
-    if (lines[0]?.trim().startsWith('0]')) return;
+    // Skip processing if the first line starts with '0]'
+    if (lines[0]?.trim().startsWith('0]')) return; // This skips the message entirely
 
     let containsGID = false;
 
@@ -123,8 +121,13 @@ client.on('messageCreate', async (message: Message) => {
         if (gidMatch) containsGID = true;
         const gid = gidMatch ? parseInt(gidMatch[1]) : null;
 
-        // Check if hearts > 99 or GID < 100
-        if (hearts > 99 || (gid !== null && gid < 100)) {
+        // Separate checks for hearts and GID
+        if (hearts > 99) {
+            await handlePog(message, guildConfig.targetChannelId);
+            return;
+        }
+
+        if (gid !== null && gid < 100) {
             await handlePog(message, guildConfig.targetChannelId);
             return;
         }
@@ -167,25 +170,6 @@ async function handlePog(message: Message, targetChannelId: string) {
     if (target && target.isTextBased()) {
         await (target as TextChannel).send({ embeds: [embed], components: [row] });
     }
-}
-
-function validateMessage(messageContent: string): boolean {
-    const lines = messageContent.split('\n');
-
-    for (const line of lines) {
-        const heartMatch = line.match(/:heart:\s+`(\d+)\s+`/);
-        const gidMatch = line.match(/`ɢ(\d+)`/);
-
-        const hearts = heartMatch ? parseInt(heartMatch[1]) : 0;
-        const gid = gidMatch ? parseInt(gidMatch[1]) : null;
-
-        // If there is no GID or GID is empty, use hearts for validation
-        if (hearts > 99 || (gid === null || isNaN(gid) || gid < 100)) {
-            return true; 
-        }
-    }
-
-    return false; 
 }
 
 client.login(process.env.TOKEN);
