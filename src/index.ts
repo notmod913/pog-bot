@@ -104,36 +104,26 @@ client.on('messageCreate', async (message: Message) => {
     const guildConfig = configData[guildId];
     if (!guildConfig || !guildConfig.targetChannelId) return;
 
-    // Split message into lines
     const lines = message.content.split('\n');
 
-    // Skip processing if the first line starts with '0]'
-    if (lines[0]?.trim().startsWith('0]')) return; // This skips the message entirely
-
-    let containsGID = false;
+    // ❌ Skip message if ANY line starts with 0]
+    if (lines.some(line => line.trim().startsWith('0]'))) return;
 
     for (const line of lines) {
+        // ✅ Only consider lines starting with 1], 2], or 3]
+        if (!/^[123]\]/.test(line.trim())) continue;
+
         const heartMatch = line.match(/:heart:\s+`(\d+)\s+`/);
         const gidMatch = line.match(/`ɢ(\d+)`/);
 
         const hearts = heartMatch ? parseInt(heartMatch[1]) : 0;
-
-        if (gidMatch) containsGID = true;
         const gid = gidMatch ? parseInt(gidMatch[1]) : null;
 
-        // Separate checks for hearts and GID
-        if (hearts > 99) {
-            await handlePog(message, guildConfig.targetChannelId);
-            return;
-        }
-
-        if (gid !== null && gid < 100) {
+        if (hearts > 99 || (gid !== null && gid < 100)) {
             await handlePog(message, guildConfig.targetChannelId);
             return;
         }
     }
-
-    if (!containsGID) return;
 });
 
 async function handlePog(message: Message, targetChannelId: string) {
@@ -173,3 +163,4 @@ async function handlePog(message: Message, targetChannelId: string) {
 }
 
 client.login(process.env.TOKEN);
+
