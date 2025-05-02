@@ -34,12 +34,14 @@ function loadConfig() {
         const data = readFileSync(configPath, 'utf8');
         return JSON.parse(data);
     } catch (err) {
+        console.error('[LOG] Failed to load config:', err);
         return {};
     }
 }
 
 function saveConfig(configData: any) {
     writeFileSync(configPath, JSON.stringify(configData, null, 2));
+    console.log('[LOG] Config saved successfully.');
 }
 
 let configData = loadConfig();
@@ -71,12 +73,18 @@ client.on('interactionCreate', async (interaction) => {
         const channelId = interaction.options.getString('channelid', true);
         const guildId = interaction.guildId;
 
+        console.log(`[LOG] Slash command used in guild: ${guildId}, channel ID set to: ${channelId}`);
+
         if (!guildId) {
             await interaction.reply('❌ This command must be used inside a server.');
             return;
         }
 
-        const channel = await client.channels.fetch(channelId).catch(() => null);
+        const channel = await client.channels.fetch(channelId).catch((err) => {
+            console.error('[LOG] Failed to fetch channel:', err);
+            return null;
+        });
+
         if (channel && channel.isTextBased() && channel.type === ChannelType.GuildText) {
             if (!configData[guildId]) configData[guildId] = {};
             configData[guildId].targetChannelId = channelId;
@@ -90,28 +98,42 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.on('messageCreate', async (message: Message) => {
-    if (message.author.id !== '742070928111960155') return; // Only Nori messages
+    console.log(`[LOG] Received message from ${message.author.tag} (${message.author.id})`);
+
+    if (message.author.id !== '742070928111960155') return;
+
     const guildId = message.guildId;
-    if (!guildId) return;
+    if (!guildId) {
+        console.log('[LOG] Message not from a guild.');
+        return;
+    }
 
     if (
         message.content.includes('<:noriclock:') &&
         (message.content.includes('You can now **grab**!') || message.content.includes('You can now **drop**!'))
     ) {
-        return; // Ignore these special status messages
+        console.log('[LOG] Skipped special status message.');
+        return;
     }
 
     const guildConfig = configData[guildId];
-    if (!guildConfig || !guildConfig.targetChannelId) return;
+    if (!guildConfig || !guildConfig.targetChannelId) {
+        console.log('[LOG] No config or target channel set for this guild.');
+        return;
+    }
 
     const lines = message.content.split('\n');
+    console.log('[LOG] Message lines:', lines);
 
-    // ❌ Skip message if ANY line starts with 0]
-    if (lines.some(line => line.trim().startsWith('0]'))) return;
+    if (lines.some(line => line.trim().startsWith('0]'))) {
+        console.log('[LOG] Skipping due to 0] line');
+        return;
+    }
 
     for (const line of lines) {
-        // ✅ Only consider lines starting with 1], 2], or 3]
         if (!/^[123]\]/.test(line.trim())) continue;
+
+        console.log('[LOG] Processing line:', line);
 
         const heartMatch = line.match(/:heart:\s+`(\d+)\s+`/);
         const gidMatch = line.match(/`ɢ(\d+)`/);
@@ -119,22 +141,39 @@ client.on('messageCreate', async (message: Message) => {
         const hearts = heartMatch ? parseInt(heartMatch[1]) : 0;
         const gid = gidMatch ? parseInt(gidMatch[1]) : null;
 
-        if (hearts > 99 || (gid !== null && gid < 100)) {
+        console.log(`[LOG] Parsed hearts: ${hearts}, gid: ${gid}`);
+
+        if (hearts > 99) {
+            console.log('[LOG] Triggered by hearts > 99');
+            await handlePog(message, guildConfig.targetChannelId);
+            return;
+        }
+
+        if (gid !== null && gid < 100) {
+            console.log('[LOG] Triggered by gid < 100');
             await handlePog(message, guildConfig.targetChannelId);
             return;
         }
     }
+
+    console.log('[LOG] No triggering line found.');
 });
 
 async function handlePog(message: Message, targetChannelId: string) {
+    console.log('[LOG] handlePog triggered');
+
     if (message.channel.isTextBased() && message.channel.type === ChannelType.GuildText) {
         await (message.channel as TextChannel).send(`🎉 ${message.author} Check it out in <#${targetChannelId}>`);
+        console.log('[LOG] Notification sent in original channel.');
     }
 
     const fetched = await message.channel.messages.fetch({ limit: 10, before: message.id });
     const imageMsg = await findImageMessage(fetched);
 
-    if (!imageMsg) return;
+    if (!imageMsg) {
+        console.log('[LOG] No image message found.');
+        return;
+    }
 
     const imageUrl = extractImageUrl(imageMsg);
     const mentionedUser = imageMsg.mentions.users.first();
@@ -159,8 +198,12 @@ async function handlePog(message: Message, targetChannelId: string) {
     const target = await message.client.channels.fetch(targetChannelId);
     if (target && target.isTextBased()) {
         await (target as TextChannel).send({ embeds: [embed], components: [row] });
+        console.log('[LOG] Embed sent to target channel.');
+    } else {
+        console.log('[LOG] Failed to fetch or send to target channel.');
     }
 }
 
 client.login(process.env.TOKEN);
+
 
