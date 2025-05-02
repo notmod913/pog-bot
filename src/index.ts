@@ -131,7 +131,7 @@ client.on('messageCreate', async (message: Message) => {
     }
 
     for (const line of lines) {
-        if (!/^[123]\]/.test(line.trim())) continue;
+        if (!/^`?[123]\]/.test(line.trim())) continue;
 
         console.log('[LOG] Processing line:', line);
 
@@ -205,6 +205,7 @@ async function handlePog(message: Message, targetChannelId: string) {
 }
 
 client.login(process.env.TOKEN);
+
 
 
 
