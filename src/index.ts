@@ -135,8 +135,8 @@ client.on('messageCreate', async (message: Message) => {
 
         console.log('[LOG] Processing line:', line);
 
-        const heartMatch = line.match(/:heart:\s+`(\d+)\s+`/);
-        const gidMatch = line.match(/`ɢ(\d+)`/);
+        const heartMatch = line.match(/:heart:\s+`(\d+)\s*`/);
+        const gidMatch = line.match(/`ɢ(\d+)\s*`/);
 
         const hearts = heartMatch ? parseInt(heartMatch[1]) : 0;
         const gid = gidMatch ? parseInt(gidMatch[1]) : null;
@@ -205,5 +205,6 @@ async function handlePog(message: Message, targetChannelId: string) {
 }
 
 client.login(process.env.TOKEN);
+
 
 
